@@ -114,28 +114,13 @@ namespace Dlid.MiHome
  * */
             return null;
         }
-        public string GetConsumables()
+        public VacuumConsumables GetConsumables()
         {
             var result = Send("get_consumable");
             if ( result.Success && !string.IsNullOrEmpty(result.ResponseText))
             {
-                //JObject o = JObject.Parse(result);
-                //var yao = o.SelectToken("$.result[0]").ToObject<VacuumStatusMessage>();
-                //return yao;
+                return result.As<VacuumConsumables>("$.result[0]");
             }
-            /*
-             * 
-             {
-	"result": [{
-		"main_brush_work_time": 172494,  // seconds change after 300h
-		"side_brush_work_time": 172494,  // seconds change after 200h
-		"filter_work_time": 172494,  // seconds change after 150h
-		"sensor_dirty_time": 172488  // seconds clean after 30h
-	}],
-	"id": 101
-}
- * 
- * */
             return null;
         }
 

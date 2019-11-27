@@ -94,5 +94,14 @@ Note that both this and the MiDevice is in progress and may very well contain is
 3. Xiaomi Robot Vacuum Protocol. - <a class="anchor" id="3"></a> https://github.com/marcelrv/XiaomiRobotVacuumProtocol [2019-11-24]
 
 
+# Version History
 
+## 0.0.7 GetConsumables
+
+- Implemented GetConsumables to get hours of consumables including calculated lifespan percentage
+- Fixed bug with the Response `As<T>` method that did not check Success flag properly
+
+## 0.0.6 First version
+
+- Core MiDevice class is working and can communicate well with my Vacuum device
 
