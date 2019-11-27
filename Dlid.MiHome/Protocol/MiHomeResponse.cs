@@ -62,7 +62,7 @@ namespace Dlid.MiHome.Protocol
         /// <returns>The parsed object or default(T) if not successful</returns>
         public T As<T>(string jpath = "$.result")
         {
-            if (!Success || !string.IsNullOrEmpty(ResponseText))
+            if (Success && !string.IsNullOrEmpty(ResponseText))
             {
                 var jObject = JObject.Parse(ResponseText);
                 var jToken = jObject.SelectToken(jpath);

@@ -36,6 +36,19 @@ namespace Dlid.MiHome.Tests
             }
         }
 
+
+        [TestMethod]
+        public void GetConsumables()
+        {
+            if (!string.IsNullOrEmpty(_ip))
+            {
+                using (var device = new MiVacuumDevice(_ip, _token))
+                {
+                    var response = device.GetConsumables();
+                }
+            }
+        }
+
         [TestMethod]
         public void Test_CleanZone()
         {
