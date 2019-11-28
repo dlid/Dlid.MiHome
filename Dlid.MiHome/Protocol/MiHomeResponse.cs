@@ -1,4 +1,5 @@
 ﻿using Dlid.MiHome.Protocol.Helpers;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -8,14 +9,24 @@ using System.Text;
 namespace Dlid.MiHome.Protocol
 {
 
-
+    /// <summary>
+    /// A parser of the device response and a helper to retreive the data
+    /// </summary>
     public class MiHomeResponse
     {
         private byte[] _data;
         private MiHomeToken _miToken;
+        private ILogger _log;
 
-        internal MiHomeResponse(MiHomeToken token, byte[] data)
-        {
+        /// <summary>
+        /// Create a new instance of a MiHomeResponse 
+        /// </summary>
+        /// <param name="logger">The ILogger instance to use for logging</param>
+        /// <param name="token">The Device token</param>
+        /// <param name="data">The data received from the device</param>
+        internal MiHomeResponse(ILogger logger, MiHomeToken token, byte[] data)
+        { 
+            _log = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
             _data = data;
             _miToken = token;
             Success = ParseResponse();
@@ -24,28 +35,44 @@ namespace Dlid.MiHome.Protocol
         /// <summary>
         /// Parse the incoming data
         /// </summary>
-        /// <returns></returns>
+        /// <returns>True if a response was successfully parsed</returns>
         private bool ParseResponse()
         {
             if (_data != null && _data.Length > 0)
             {
-
+                _log.Log(LogLevel.Debug, $"Parsing response ({_data.Length} bytes)");
                 using (var content = new ByteList(_data))
                 {
                     // Receive the device id from the response
                     DeviceId = content.Skip(8).Take(4).ToArray();
+                    _log.Log(LogLevel.Debug, $"DeviceID found in response");
 
                     var timestamp = content.ReadInt32LE(12, 4);
                     if (timestamp > 0)
                     {
                         Timestamp = new ServerTimestamp(timestamp);
+                        _log.Log(LogLevel.Debug, $"Timestamp {timestamp} found in response");
                     }
 
                     var encrypted = content.Skip(32);
                     if (encrypted.Count() > 0)
                     {
-                        var decrypted = AESHelper.Decrypt(_miToken.Key, _miToken.InitializationVector, encrypted.ToArray());
-                        ResponseText = ASCIIEncoding.ASCII.GetString(decrypted);
+                        using (_log.BeginScope($"Decrypting response ({encrypted.Count()} bytes)"))
+                        {
+                            try
+                            {
+                                var decrypted = AESHelper.Decrypt(_miToken.Key, _miToken.InitializationVector, encrypted.ToArray());
+                                ResponseText = ASCIIEncoding.ASCII.GetString(decrypted);
+                                _log.LogDebug("Response decrypted: " + ResponseText);
+                            } catch (Exception ex)
+                            {
+                                _log.LogError(ex, "Error decrypting response");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        _log.Log(LogLevel.Debug, "Response body was empty");
                     }
                     return true;
                 }
@@ -82,7 +109,7 @@ namespace Dlid.MiHome.Protocol
             var resultStrings = As<List<string>>();
             return resultStrings?.Count == 0 && resultStrings[0] == "ok";
         }
-        
+
         internal MiHomeResponse()
         {
             Success = false;

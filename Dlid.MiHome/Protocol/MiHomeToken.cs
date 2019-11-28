@@ -1,5 +1,6 @@
 ﻿using Dlid.MiHome.Exceptions;
 using Dlid.MiHome.Protocol.Helpers;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -12,11 +13,14 @@ namespace Dlid.MiHome.Protocol
         public byte[] InitializationVector { get; private set; }
         public byte[] Token { get; private set; }
 
-        public MiHomeToken(string token)
-        {
+        ILogger _log;
 
+        public MiHomeToken(string token, ILogger logger = null)
+        {
+            _log = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
             if (string.IsNullOrEmpty(token))
             {
+                _log.LogError("No token was provided");
                 throw new MiTokenException("No token was provided");
             }
 
@@ -32,6 +36,7 @@ namespace Dlid.MiHome.Protocol
             var ivContent = ByteList.Join(Key, Token);
 
             InitializationVector = MD5Helper.Hash(ivContent.ToArray());
+            _log.Log(LogLevel.Debug, "Key and IV was resolved for the token");
         }
 
         private byte[] HexStringToByteArray(string hex)
@@ -47,9 +52,11 @@ namespace Dlid.MiHome.Protocol
             {
                 if (fe.Message.Contains("Could not find any recognizable digits"))
                 {
+                    _log.LogError(fe, "Token was not a valid hex character string");
                     throw new MiTokenException("Token must only contain HEX characters", fe);
                 } else
                 {
+                    _log.LogError(fe, "An error occured when parsing the token as a hex string");
                     throw;
                 }
             }

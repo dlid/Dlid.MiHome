@@ -1,4 +1,5 @@
 ﻿using Dlid.MiHome.Vacuum;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -10,7 +11,7 @@ namespace Dlid.MiHome
 {
     public class MiVacuumDevice : MiDevice
     {
-        public MiVacuumDevice(string IpAddress, string Token) : base(IpAddress, Token) {}
+        public MiVacuumDevice(string IpAddress, string Token, ILogger logger = null) : base(IpAddress, Token, logger) {}
 
         public bool Start()
         {

@@ -9,22 +9,19 @@ namespace Dlid.MiHome.Protocol.Helpers
 {
     internal class ByteList : List<byte>, IDisposable
     {
-
         /// <summary>
-        /// Create a new ByteList filled with the specified byte on each position
+        /// Create a byte array containing the concatination of the provided byte arrays
         /// </summary>
-        /// <param name="fillSize"></param>
-        /// <param name="fillWith"></param>
-        public ByteList(int fillSize)
-        {
-            Repeat(0x00, fillSize, -1);
-        }
-
+        /// <param name="byteLists"></param>
         public ByteList(byte[][] byteLists)
         {
             byteLists.ToList().ForEach(byteArray => AddRange(byteArray));
         }
 
+        /// <summary>
+        /// Create a byte array with the given content
+        /// </summary>
+        /// <param name="data"></param>
         public ByteList(byte[] data)
         {
             AddRange(data);
@@ -52,11 +49,20 @@ namespace Dlid.MiHome.Protocol.Helpers
             return value;
         }
 
+        /// <summary>
+        /// Get the MD5 hash for the current array data
+        /// </summary>
+        /// <returns></returns>
         public byte[] ToMd5()
         {
             return MD5Helper.Hash(ToArray());
         } 
 
+        /// <summary>
+        /// Create a new byte array with the concatinated values of the provided arrays
+        /// </summary>
+        /// <param name="byteLists"></param>
+        /// <returns></returns>
         public static ByteList Join(params byte[][] byteLists)
         {
             return (new ByteList(byteLists));
@@ -64,23 +70,23 @@ namespace Dlid.MiHome.Protocol.Helpers
 
         public ByteList(): base() {}
 
+        /// <summary>
+        /// Write the current byte array to a memorystream using a ASCII binary writer
+        /// </summary>
         public byte[] ToBinaryASCIIArray()
         {
             using (MemoryStream stream = new MemoryStream())
             using (BinaryWriter writer = new BinaryWriter(stream, Encoding.ASCII))
             {
-                try
-                {
-                    writer.Write(ToArray());
-                    return stream.ToArray();
-                }
-                catch (Exception e)
-                {
-                    throw;
-                }
+                writer.Write(ToArray());
+                return stream.ToArray();
             }
         }
 
+        /// <summary>
+        /// Add the given bytes to the array
+        /// </summary>
+        /// <param name="values"></param>
         public void Add(params byte[] values)
         {
             AddRange(values);
@@ -108,11 +114,6 @@ namespace Dlid.MiHome.Protocol.Helpers
             if (BitConverter.IsLittleEndian)
                 Array.Reverse(intBytes);
             InsertAt(intBytes, position);
-        }
-
-        public void Add(string value)
-        {
-            AddRange(Encoding.ASCII.GetBytes(value));
         }
 
         // <summary>
@@ -143,11 +144,17 @@ namespace Dlid.MiHome.Protocol.Helpers
             InsertAt(intBytes.ToArray(), position);
         }
 
+        /// <summary>
+        /// Write the given int as a int16 Big Endian
+        /// </summary>
         public void WriteUInt16BE(int value, int position = -1)
         {
             WriteUInt16BE(Convert.ToUInt16(value), position);
         }
 
+        /// <summary>
+        /// Write the given int as a int16 Little Endian
+        /// </summary>
         public void WriteUInt16LE(int value, int position = -1)
         {
             WriteUInt16LE(Convert.ToUInt16(value), position);
@@ -205,8 +212,6 @@ namespace Dlid.MiHome.Protocol.Helpers
             }
         }
 
-        public void Dispose()
-        {
-        }
+        public void Dispose() {}
     }
 }

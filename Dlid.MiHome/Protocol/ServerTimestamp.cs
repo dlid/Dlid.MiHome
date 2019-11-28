@@ -1,9 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Dlid.MiHome.Protocol
 {
+    /// <summary>
+    /// A container class to keep track of the latest timestamp received from the device and the time it was received
+    /// </summary>
     internal class ServerTimestamp
     {
         internal ServerTimestamp(long ts)

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace Dlid.MiHome.Tests
 {
@@ -31,7 +32,6 @@ namespace Dlid.MiHome.Tests
                 using (var device = new MiDevice(_ip, _token))
                 {
                     var response = device.Send("app_start");
-
                 }
             }
         }
