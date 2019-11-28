@@ -29,8 +29,9 @@ namespace Dlid.MiHome.Protocol
         /// <summary>
         /// Creates a Handshake request - without a body payload
         /// </summary>
-        public MiHomeRequest(NetworkOptions options)
+        public MiHomeRequest(NetworkOptions options, ILogger logger = null)
         {
+            _log = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
             NetworkOptions = options;
         }
         
