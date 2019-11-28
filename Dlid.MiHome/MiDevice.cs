@@ -78,7 +78,7 @@ namespace Dlid.MiHome
         /// <returns>The response from the handshake</returns>
         private MiHomeResponse Handshake()
         {
-            var miRequest = new MiHomeRequest(NetworkOptions);
+            var miRequest = new MiHomeRequest(NetworkOptions, _log);
             return Send(miRequest);
         }
 

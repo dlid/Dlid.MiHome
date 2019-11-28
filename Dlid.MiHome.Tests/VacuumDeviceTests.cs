@@ -78,6 +78,11 @@ namespace Dlid.MiHome.Tests
                     // in cleaning 2 == ✔ zone 
                     // in cleaning 1 == ✔ general 
 
+                    /*
+                     * 
+                     * 
+                     * {"result":[{"msg_ver":2,"msg_seq":67,"state":8,"battery":100,"clean_time":16,"clean_area":157500,"error_code":0,"map_present":1,"in_cleaning":0,"in_returning":0,"in_fresh_state":1,"lab_status":1,"fan_power":60,"dnd_enabled":1}],"id":-976019150}*/
+
                 }
             }
         }
