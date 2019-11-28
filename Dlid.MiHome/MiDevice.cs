@@ -3,23 +3,22 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using Serilog;
 using System.Threading.Tasks;
-using Serilog.Events;
-using Serilog.Sinks.SystemConsole.Themes;
 using Newtonsoft.Json.Linq;
 using Dlid.MiHome.Protocol;
+using Microsoft.Extensions.Logging;
+using System.Threading;
 
 namespace Dlid.MiHome
 {
     public class MiDevice : IDisposable
     {
-        private string _ipAddress;
-        private string _token;
-        internal MiHomeToken _miToken;
-        internal NetworkConnection _socket;
-        internal int _requestId = 0;
         internal byte[] _deviceId;
+        private string _ipAddress;
+        private ILogger _log;
+        internal MiHomeToken _miToken;
+        internal int _requestId = 0;
+        internal NetworkConnection _socket;
 
         public NetworkOptions NetworkOptions { get; set; } = new NetworkOptions();
 
@@ -29,67 +28,75 @@ namespace Dlid.MiHome
         /// </summary>
         internal ServerTimestamp _serverTimestamp;
 
-        public MiDevice(string IPAddress, string Token)
+        public MiDevice(string IPAddress, string Token, ILogger logger = null)
         {
-            Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-            .Enrich.FromLogContext()
-                //.WriteTo.File(@".\logs\Dlid.SmaryHome.VauumLib.log",
-                //    outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level}] {SourceContext}{Message:lj}{Exception}{NewLine}",
-                //    fileSizeLimitBytes: 10240000,
-                //    rollOnFileSizeLimit: true,
-                //    flushToDiskInterval: TimeSpan.FromMinutes(5))
-                .WriteTo.Console(
-                    outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level}] {SourceContext}{Message:lj}{NewLine}{Exception}",
-                    theme: AnsiConsoleTheme.Code)
-            .CreateLogger();
+            _log = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
 
             _ipAddress = IPAddress;
-            _token = Token;
-            _miToken = new MiHomeToken(Token);
+            _miToken = new MiHomeToken(Token, _log);
             
-            Log.Logger.Debug($"Created Device {IPAddress} ");
+            _log.Log(LogLevel.Trace, $"Created Device {IPAddress} ");
 
             // Unique enough Id base
             _requestId = Guid.NewGuid().GetHashCode() / 2;
         }
 
-        private void Connect()
+        /// <summary>
+        /// Make sure settings are set, a connection exists and a handshake has been made
+        /// </summary>
+        private void EnsureConnection()
         {
+            if (NetworkOptions == null)
+            {
+                NetworkOptions = new NetworkOptions();
+            }
+
             if (_socket == null)
             {
-                Log.Logger.Debug($"Connecting to {this._ipAddress}");
-                _socket = new NetworkConnection();
+                _log.Log(LogLevel.Trace, $"Connecting to {this._ipAddress}:{NetworkOptions.NetworkPort}");
+                _socket = new NetworkConnection(_log, NetworkOptions);
 
-                _socket.Connect(_ipAddress, 54321, _token);
+                _socket.Connect(_ipAddress, NetworkOptions.NetworkPort);
+                _log.Log(LogLevel.Trace, $"Connected");
             }
+
             if (InNeedOfHandshake)
             {
                 var handshakeResponse = Handshake();
                 if (!handshakeResponse.Success)
                 {
-                    throw new Exception("Handshake failed");
+                    var err = new Exception("Handshake failed");
+                    _log.LogError(err, "Handshake failed");
+                    throw err;
                 }
             }
         }
 
-
+        /// <summary>
+        /// Send a Handshake request
+        /// </summary>
+        /// <returns>The response from the handshake</returns>
         private MiHomeResponse Handshake()
         {
             var miRequest = new MiHomeRequest(NetworkOptions);
             return Send(miRequest);
         }
 
+        /// <summary>
+        /// Check if a handshake is required
+        /// </summary>
         private bool InNeedOfHandshake
         {
             get
             {
-                //TODO: Check time and stuff-stuff!
-                return _serverTimestamp == null;
+                var secondsSinceLastHandhake = _serverTimestamp != null ? (DateTime.Now - _serverTimestamp.ReceivedTime).TotalSeconds : NetworkOptions.HandshakeEvery.TotalSeconds + 1;
+                return secondsSinceLastHandhake > NetworkOptions.HandshakeEvery.TotalSeconds;
             }
         }
 
+        /// <summary>
+        /// Create an id for the next request
+        /// </summary>
         private void NextId()
         {
             if (_requestId + 100 > int.MaxValue) {
@@ -98,10 +105,15 @@ namespace Dlid.MiHome
             _requestId += 100;
         }
 
+        /// <summary>
+        /// Send the content of MiHomeRequest and wait for a response
+        /// </summary>
+        /// <param name="request">The Request to send</param>
+        /// <returns>The parsed and decrypted response from the device</returns>
         private MiHomeResponse Send(MiHomeRequest request)
         {
             if (!request.IsHandshake) { 
-                Connect();
+                EnsureConnection();
                 NextId();
 
                 // Update the request with the updated values from the handshake
@@ -117,7 +129,7 @@ namespace Dlid.MiHome
                 var responsePayload = _socket.Send(requestPayload, request.NetworkOptions);
                 if (responsePayload != null)
                 {
-                    var miResponse = new MiHomeResponse(_miToken, responsePayload);
+                    var miResponse = new MiHomeResponse(_log, _miToken, responsePayload);
                     if (miResponse.Success)
                     {
                         // We need Device ID and server timestamp for subsequent requests
@@ -131,28 +143,46 @@ namespace Dlid.MiHome
                 }
                 request.RequestId++;
                 retryCount--;
+                if (NetworkOptions.RetryDelay.TotalMilliseconds > 0)
+                {
+                    Thread.Sleep(NetworkOptions.HandshakeEvery);
+                }
             } while (retryCount > 0);
 
             return new MiHomeResponse();
         }
 
+        /// <summary>
+        /// Send a request with the given method name and parameters
+        /// </summary>
+        /// <param name="methodName">The method name</param>
+        /// <param name="parameters">Any parameters that the request requires</param>
+        /// <returns>The parsed and decrypted response from the device</returns>
         public MiHomeResponse Send(string methodName, params object[] parameters)
         {
             var miRequest = new MiHomeRequest(_miToken, _deviceId, _serverTimestamp, NetworkOptions, new
             {
                 method = methodName,
                 @params = parameters
-            });
+            }, _log);
             return Send(miRequest);
         }
 
+        /// <summary>
+        /// Send a custom request with the given data
+        /// </summary>
+        /// <param name="data">The object that will be serialized into the JSON body for the request. If you do not send an id property, the library will handle that for you (recommended)</param>
+        /// <returns>The parsed and decrypted response from the device</returns>
         public MiHomeResponse Send(object data)
         {
-            var myRequest = new MiHomeRequest(_miToken, _deviceId, _serverTimestamp, NetworkOptions, data);
+            var myRequest = new MiHomeRequest(_miToken, _deviceId, _serverTimestamp, NetworkOptions, data, _log);
             return Send(myRequest);
         }
 
 
+        /// <summary>
+        /// Close any open connection and dispose the object
+        /// </summary>
         public void Dispose()
         {
             if (this._socket != null)
