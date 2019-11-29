@@ -145,7 +145,7 @@ namespace Dlid.MiHome
                 retryCount--;
                 if (NetworkOptions.RetryDelay.TotalMilliseconds > 0)
                 {
-                    Thread.Sleep(NetworkOptions.HandshakeEvery);
+                    Thread.Sleep(NetworkOptions.RetryDelay);
                 }
             } while (retryCount > 0);
 
