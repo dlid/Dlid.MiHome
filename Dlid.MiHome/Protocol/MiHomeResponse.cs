@@ -45,6 +45,9 @@ namespace Dlid.MiHome.Protocol
                 {
                     // Receive the device id from the response
                     DeviceId = content.Skip(8).Take(4).ToArray();
+                    TypeId = content.Skip(8).Take(2).ToArray();
+                    SerialId = content.Skip(10).Take(2).ToArray();
+                    Token = content.Skip(16).Take(16).ToArray() ;
                     _log.Log(LogLevel.Debug, $"DeviceID found in response");
 
                     var timestamp = content.ReadInt32LE(12, 4);
@@ -119,7 +122,10 @@ namespace Dlid.MiHome.Protocol
 
         internal ServerTimestamp Timestamp { get; private set; }
 
+        public byte[] TypeId { get; private set; }
         public byte[] DeviceId { get; private set; }
+        public byte[] SerialId { get; private set; }
+        public byte[] Token { get; private set; }
 
         public string ResponseText { get; private set; }
     }

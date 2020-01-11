@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,7 +14,12 @@ namespace Dlid.MiHome
     public class MiDevice : IDisposable
     {
         internal byte[] _deviceId;
-        private string _ipAddress;
+        public string Token { get; set; }
+        public string TypeID { get; set; }
+        public string SerialID { get; set; }
+        public string DeviceID { get { return TypeID + SerialID; } }
+        public string Devicename { get { return IpAddress + " " + TypeID; } }
+        public string IpAddress { get; set; }
         private ILogger _log;
         internal MiHomeToken _miToken;
         internal int _requestId = 0;
@@ -28,11 +33,17 @@ namespace Dlid.MiHome
         /// </summary>
         internal ServerTimestamp _serverTimestamp;
 
+
+        public MiDevice(MiHomeResponse response) {
+            Token = BitConverter.ToString(response.Token).Replace("-", "");
+            TypeID = BitConverter.ToString(response.TypeId).Replace("-", "");
+            SerialID = BitConverter.ToString(response.SerialId).Replace("-", "");
+        }
         public MiDevice(string IPAddress, string Token, ILogger logger = null)
         {
             _log = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
 
-            _ipAddress = IPAddress;
+            IpAddress = IPAddress;
             _miToken = new MiHomeToken(Token, _log);
             
             _log.Log(LogLevel.Trace, $"Created Device {IPAddress} ");
@@ -53,10 +64,10 @@ namespace Dlid.MiHome
 
             if (_socket == null)
             {
-                _log.Log(LogLevel.Trace, $"Connecting to {this._ipAddress}:{NetworkOptions.NetworkPort}");
+                _log.Log(LogLevel.Trace, $"Connecting to {this.IpAddress}:{NetworkOptions.NetworkPort}");
                 _socket = new NetworkConnection(_log, NetworkOptions);
 
-                _socket.Connect(_ipAddress, NetworkOptions.NetworkPort);
+                _socket.Connect(IpAddress, NetworkOptions.NetworkPort);
                 _log.Log(LogLevel.Trace, $"Connected");
             }
 
@@ -158,10 +169,24 @@ namespace Dlid.MiHome
         /// <param name="methodName">The method name</param>
         /// <param name="parameters">Any parameters that the request requires</param>
         /// <returns>The parsed and decrypted response from the device</returns>
-        public MiHomeResponse Send(string methodName, params object[] parameters)
+        public MiHomeResponse Send(string methodName, params object[] parameters) 
         {
-            var miRequest = new MiHomeRequest(_miToken, _deviceId, _serverTimestamp, NetworkOptions, new
-            {
+            var miRequest = new MiHomeRequest(_miToken, _deviceId, _serverTimestamp, NetworkOptions, new {
+                method = methodName,
+                @params = parameters
+            }, _log);
+            return Send(miRequest);
+        }
+
+        /// <summary>
+        /// Send a request with the given method name and parameters
+        /// </summary>
+        /// <param name="methodName">The method name</param>
+        /// <param name="parameters">Any parameters that the request requires</param>
+        /// <returns>The parsed and decrypted response from the device</returns>
+        public MiHomeResponse Send(string methodName, dynamic parameters) 
+        {
+            var miRequest = new MiHomeRequest(_miToken, _deviceId, _serverTimestamp, NetworkOptions, new {
                 method = methodName,
                 @params = parameters
             }, _log);
