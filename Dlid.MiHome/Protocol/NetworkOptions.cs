@@ -11,7 +11,7 @@ namespace Dlid.MiHome.Protocol
     {
 
         private TimeSpan _sendTimeout = new TimeSpan(0, 0, 0, 1);
-        private TimeSpan _receiveTimeout = new TimeSpan(0, 0, 0, 1);
+        private TimeSpan _receiveTimeout = new TimeSpan(0, 0, 0, 2);
         private int _retryCount = 5;
         private TimeSpan _retryDelay = new TimeSpan(0, 0, 0, 0, 500);
         private TimeSpan _handshakeEvery = new TimeSpan(0, 2, 0);
